@@ -3,8 +3,10 @@
 declare(strict_types = 1);
 namespace Xutengx\Request;
 
+use InvalidArgumentException;
 use Xutengx\Request\Component\UploadFile;
 use Xutengx\Request\Traits\{Filter, RequestInfo};
+use Xutengx\Tool\Tool;
 
 class Request {
 
@@ -18,17 +20,19 @@ class Request {
 	protected $options = [];
 	protected $head    = [];
 	protected $patch   = [];
-	protected $input   = [];
 	protected $cookie  = [];
 	protected $file;
+	protected $tool;
 
 	/**
 	 * Request constructor.
 	 * @param UploadFile $uploadFile
+	 * @param Tool $tool
 	 */
-	public function __construct(UploadFile $uploadFile) {
+	public function __construct(UploadFile $uploadFile, Tool $tool) {
 		$this->RequestInfoInit();
 		$this->file = $uploadFile;
+		$this->tool = $tool;
 	}
 
 	/**
@@ -68,16 +72,20 @@ class Request {
 	}
 
 	/**
-	 * 参数获取
+	 * 参数过滤及设置
 	 * @param array $domainParameters 路由的`域名`参数
 	 * @param array $staticParameters url静态参数(pathInfo参数)
 	 * @return Request
 	 * @throws Exception\UploadFileException
+	 * @throws \Xutengx\Tool\Exception\DecodeXMLException
 	 */
 	public function setParameters(array $domainParameters = [], array $staticParameters = []): Request {
-		$this->get    = $this->filter($staticParameters);
-		$this->domain = $this->filter($domainParameters);
-		return $this->setRequestParameters();
+		$this->{$this->method} = $this->parsingData();
+		$this->get             = array_merge($this->filter($staticParameters), $this->recursiveHtmlspecialchars($_GET));
+		$this->cookie          = $this->recursiveHtmlspecialchars($_COOKIE);
+		$this->post            = $this->recursiveHtmlspecialchars($_POST);
+		$this->domain          = $this->filter($domainParameters);
+		$this->file->addFiles($_FILES);
 	}
 
 	/**
@@ -93,6 +101,9 @@ class Request {
 	 */
 	public function setCookie(string $name, $value = '', int $expire = 0, string $path = '', string $domain = '',
 		bool $secure = false, bool $httpOnly = true): void {
+		if (!is_string($value) && !is_array($value)) {
+			throw new InvalidArgumentException();
+		}
 		$expire              += time();
 		$this->cookie[$name] = $_COOKIE[$name] = $value;
 		if (is_array($value))
@@ -103,101 +114,126 @@ class Request {
 	}
 
 	/**
-	 * 获取参数到当前类的属性
-	 * @return Request
-	 * @throws Exception\UploadFileException
+	 * 解析特定类型的数据
+	 * @return array
+	 * @throws \Xutengx\Tool\Exception\DecodeXMLException
 	 */
-	protected function setRequestParameters(): Request {
-		$this->cookie = $this->recursiveHtmlspecialchars($_COOKIE);
+	protected function parsingData(): array {
+		// 未被php解析的内容
+		$temp = file_get_contents('php://input');
 
-		if (($argc = $this->method) !== 'get') {
-			$temp         = file_get_contents('php://input');
-			$content_type = $this->contentType;
-
-			if (stripos($content_type, 'application/x-www-form-urlencoded') !== false) {
-				parse_str($temp, $this->{$argc});
-				$this->{$argc} = $this->filter($this->{$argc});
-			}
-			elseif (stripos($content_type, 'application/json') !== false) {
-				$this->{$argc} = json_decode($temp, true);
-			}
-			elseif (stripos($content_type, 'application/xml') !== false) {
-				$this->{$argc} = obj(Tool::class)->xml_decode($temp);
-			}
-			else {
-				$this->{$argc} = !empty($_POST) ? $this->recursiveHtmlspecialchars($_POST) :
-					$this->filter($this->getStream($temp));
-			}
+		// 未被php解析的内容类型为`查询字符串`
+		if (stripos($this->contentType, 'application/x-www-form-urlencoded') !== false) {
+			parse_str($temp, $tempArr);
+			return $this->filter($tempArr);
 		}
-		$this->get = array_merge($this->get, $this->recursiveHtmlspecialchars($_GET));
-		$this->consistentFile();
-		$this->input = $this->{$argc};
-		return $this;
+		// 未被php解析的内容类型为`json`
+		elseif (stripos($this->contentType, 'application/json') !== false) {
+			return json_decode($temp, true);
+		}
+		// 未被php解析的内容类型为`xml`
+		elseif (stripos($this->contentType, 'application/xml') !== false) {
+			return $this->tool->xmlDecode($temp);
+		}
+		// 未被php解析的内容类型为`流`
+		else
+			return $this->filter($this->getStream($temp));
 	}
 
 	/**
-	 * 分析stream获得数据, put文件上传时,php不会帮忙解析信息,只有手动了
+	 * 分析`stream`获得数据, 兼容文件上传
 	 * @param string $input
 	 * @return array
 	 */
 	protected function getStream(string $input): array {
+		// 最终返回
 		$requestData = [];
-		// grab multipart boundary from content type header
-		preg_match('/boundary=(.*)$/', $this->contentType, $matches);
 
-		// content type is probably regular form-encoded
-		if (!count($matches)) {
-			// we expect regular puts to containt a query string containing data
-			parse_str(urldecode($input), $requestData);
+		// 获取内容分解符
+		preg_match('/boundary=(.*)$/', $this->contentType, $boundaryMatches);
+
+		// 内容分解符为空, 则内容类型为规则形式编码
+		if (empty($boundaryMatches)) {
+			// 解析查询字符串
+			$this->analysisParameterString($input, $requestData);
 			return $requestData;
 		}
 
-		// split content by boundary and get rid of last -- element
-		$allBlocks = preg_split("/-+$matches[1]/", $input);
-		array_pop($allBlocks);
+		// 用边界拆分并去掉最后一个元素
+		$allBlocks = $this->splitInput($boundaryMatches[1], $input);
 
-		// loop data blocks
-		foreach ($allBlocks as $block) {
-			if (empty($block))
-				continue;
-			// you'll have to var_dump $block to understand this and maybe replace \n or \r with a visibile char
-			// parse uploaded files
-			if (strpos($block, 'filename=') !== false) {
-				// match "name", then everything after "stream" (optional) except for prepending newlines
-				preg_match("/name=\"([^\"]*)\".*filename=\"([^\"].*?)\".*Content-Type:\s+(.*?)[\n|\r|\r\n]+([^\n\r].*)?$/s",
-					$block, $matches);
-				// 兼容无文件上传的情况
-				if (empty($matches))
-					continue;
-				$content_blob = $matches[4];
-				$content_blob = substr($content_blob, 0, strlen($content_blob) - strlen(PHP_EOL) * 2);  // 移除尾部多余换行符
-				$this->file->addFile([
-					'key_name' => $matches[1],
-					'name'     => $matches[2],
-					'type'     => $matches[3],
-					'size'     => strlen($content_blob),
-					'content'  => $content_blob
-				]);
-			}
-			// parse all other fields
-			else {
-				// match "name" and optional value in between newline sequences
-				preg_match('/name=\"([^\"]*)\"[\n|\r]+([^\n\r].*)?\r$/s', $block, $matches);
-				$requestData[$matches[1]] = $matches[2] ?? '';
-			}
-		}
+		// 循环解析每个部分
+		// 区别对待文件与字符
+		foreach ($allBlocks as $block)
+			(strpos($block['header'], 'filename="') !== false) ? $this->analysisFileBlock($block) :
+				$this->analysisParameterBlock($block, $requestData);
 		return $requestData;
 	}
 
 	/**
-	 * 将$_FILES 放入 $this->file
-	 * @return void
-	 * @throws Exception\UploadFileException
+	 * 拆分输入块
+	 * @param string $delimiter
+	 * @param string $input
+	 * @return array
 	 */
-	protected function consistentFile(): void {
-		if (!empty($_FILES)) {
-			$this->file->addFiles($_FILES);
+	protected function splitInput(string $delimiter, string $input): array {
+		$allBlocks = explode('--' . $delimiter . "\r\n", $input);
+		// 移除头部无效元素
+		array_shift($allBlocks);
+		// 移除末尾无效元素
+		array_pop($allBlocks);
+		// 格式化
+		foreach ($allBlocks as $k => $block) {
+			$tempBlocks = explode("\r\n\r\n", $block);
+			$temp       = [];
+			for ($i = 1; $i < count($tempBlocks); $i++) {
+				$temp[] = $allBlocks[$k][$i];
+			}
+			$allBlocks[$k]['header'] = $tempBlocks[0];
+			$allBlocks[$k]['body']   = rtrim(implode(" ", $temp), "\r\n");
 		}
+		return $allBlocks;
+	}
+
+	/**
+	 * 解析规则形式编码
+	 * @param string $input
+	 * @param array &$requestData
+	 * @return void
+	 */
+	protected function analysisParameterString(string $input, array &$requestData): void {
+		parse_str(urldecode($input), $requestData);
+	}
+
+	/**
+	 * 解析steam文件类型
+	 * @param array $inputBlock
+	 * @return void
+	 */
+	protected function analysisFileBlock(array $inputBlock): void {
+		preg_match("/name=\"([^\"]*)\".*filename=\"([^\"].*?)\".*Content-Type:\s+(.*?)$/s", $inputBlock['header'],
+			$matches);
+		if (!empty($matches)) {
+			// 加入文件对象
+			$this->file->addFile([
+				'key_name' => $matches[1],
+				'name'     => $matches[2],
+				'type'     => $matches[3],
+				'size'     => strlen($inputBlock['body']),
+				'content'  => $inputBlock['body']
+			]);
+		}
+	}
+
+	/**
+	 * 解析steam参数类型
+	 * @param array $inputBlock
+	 * @param array &$requestData
+	 * @return void
+	 */
+	protected function analysisParameterBlock(array $inputBlock, array &$requestData): void {
+		preg_match('/name=\"([^\"]*)\"$/s', $inputBlock['header'], $matches);
+		$requestData[$matches[1]] = $inputBlock['body'];
 	}
 
 }

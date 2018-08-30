@@ -82,18 +82,18 @@ trait RequestInfo {
 		}
 
 		// 代理服务器不存在或者未传值
-		return $_SERVER['REMOTE_ADDR'];
+		return $_SERVER['REMOTE_ADDR'] ?? '';
 	}
 
 	public function RequestInfoInit() {
-		$this->inSys          = INSYS ?? 'index.php';
+		$this->inSys          = 'index.php';
 		$this->isAjax         = $this->isAjax();
-		$this->scheme         = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $_SERVER['REQUEST_SCHEME'];
-		$this->host           = $_SERVER['HTTP_HOST'];
-		$this->port           = $_SERVER['HTTP_X_FORWARDED_PORT'] ?? $_SERVER['SERVER_PORT'];
-		$this->scriptName     = $_SERVER['SCRIPT_NAME'];
-		$this->requestUrl     = $_SERVER['REQUEST_URI'];
-		$this->queryString    = $_SERVER['QUERY_STRING'];
+		$this->scheme         = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $_SERVER['REQUEST_SCHEME'] ?? '';
+		$this->host           = $_SERVER['HTTP_HOST'] ?? '';
+		$this->port           = $_SERVER['HTTP_X_FORWARDED_PORT'] ?? $_SERVER['SERVER_PORT'] ?? '';
+		$this->scriptName     = $_SERVER['SCRIPT_NAME'] ?? '';
+		$this->requestUrl     = $_SERVER['REQUEST_URI'] ?? '';
+		$this->queryString    = $_SERVER['QUERY_STRING'] ?? '';
 		$this->hostInfo       = $this->scheme . '://' . $this->host .
 		                        (($this->port !== '80' && $this->port !== '443') ? ':' . $this->port : '');
 		$this->absoluteUrl    = $this->hostInfo . $this->requestUrl;
@@ -101,12 +101,12 @@ trait RequestInfo {
 		$this->pathInfo       = '/' . str_replace('?' . $this->queryString, '',
 				substr_replace($this->requestUrl, '', 0, strlen(str_replace($this->inSys, '', $this->scriptName))));
 		$this->staticUrl      = $this->hostInfo . $this->pathInfo;
-		$this->serverName     = $_SERVER['SERVER_NAME'];
-		$this->method         = strtolower($_SERVER['REQUEST_METHOD']);
+		$this->serverName     = $_SERVER['SERVER_NAME'] ?? '';
+		$this->method         = strtolower($_SERVER['REQUEST_METHOD'] ?? '');
 		$this->userHost       = $_SERVER['REMOTE_HOST'] ?? '';
 		$this->ip             = $this->userIp = $this->getUserIp();
 		$this->contentType    = $_SERVER['CONTENT_TYPE'] ?? '';
-		$this->acceptType     = $_SERVER['ACCEPY_TYPE'] ?? $_SERVER['ACCEPY'] ?? '';
+		$this->acceptType     = $_SERVER['HTTP_ACCEPT'] ?? $_SERVER['HTTP_ACCEPT_TYPE'] ?? '';
 	}
 
 	/**

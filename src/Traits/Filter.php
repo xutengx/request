@@ -4,23 +4,21 @@ declare(strict_types = 1);
 namespace Xutengx\Request\Traits;
 
 use Closure;
+use InvalidArgumentException;
 
-/**
- * 客户端相关信息获取
- */
 trait Filter {
 
-	public $filterArr = [
+	protected $filterRules = [
 		'email'     => '/^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/',
 		'url'       => '/\b(([\w-]+:\/\/?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|\/)))/',
 		// 可以正负数字
 		'int'       => '/^-?\d+$/',
 		// 密码(允许5-32字节，允许字母数字下划线)
-		'passwd'    => '/^[\w]{5,32}$/',
+		'password'  => '/^[\w]{5,32}$/',
 		// 帐号(字母开头，允许5-16字节，允许字母数字下划线)
 		'account'   => '/^[a-zA-Z][a-zA-Z0-9_]{5,16}$/',
 		// 身份证：中国的身份证为15位或18位
-		'idcard'    => '/^\d{15}|\d{18}$/',
+		'id_number' => '/^\d{15}|\d{18}$/',
 		// 中国邮政编码
 		'mail'      => '/^[1-9]\d{5}(?!\d)$/',
 		// 腾讯QQ号 腾讯QQ号从10000开始
@@ -39,37 +37,86 @@ trait Filter {
 		'name'      => '/^[_\w\d\x{4e00}-\x{9fa5}]{2,8}$/iu'
 	];
 
-	public function get(string $key, string $filter = null) {
-		return $this->filterFunc('get', $key, $filter);
-	}
-
 	/**
-	 * 过滤请求参数, 参数不存在返回null, 验证不通过返回false
-	 * @param string $method
-	 * @param string $key
-	 * @param string|false $filter
-	 * @return mixed|false|null
-	 */
-	protected function filterFunc(string $method, string $key, string $filter = null) {
-		if (isset($this->$method[$key]))
-			return (is_null($filter) || $this->filterMatch($this->$method[$key], $filter)) ? $this->$method[$key] :
-				false;
-		else
-			return null;
-	}
-
-	/**
-	 * 正则匹配
-	 * @param string $str 检验对象
-	 * @param string $filter 匹配规则
+	 * 增加一个验证规则
+	 * @param string $ruleName
+	 * @param string|Closure $rule
 	 * @return bool
 	 */
-	protected function filterMatch(string $str, string $filter): bool {
-		$rule = $this->filterArr[$filter] ?? $filter;
-		if ($rule instanceof Closure) {
-			return $rule($str) ? true : false;
+	public function addRule(string $ruleName, $rule): bool {
+		if (isset($this->filterRules[$ruleName]))
+			throw new InvalidArgumentException("Rule[$ruleName] is already exist.");
+		if (is_string($rule)) {
+			$this->filterRules[$ruleName] = $rule;
+			return true;
 		}
-		return preg_match($rule, $str) ? true : false;
+		elseif ($rule instanceof Closure) {
+			$this->filterRules[$ruleName] = function(string $string) use ($rule): bool {
+				return $rule($string);
+			};
+			return true;
+		}
+		throw new InvalidArgumentException("The rule mast instanceof string or Closure.");
+	}
+
+	/**
+	 * 判断是否存在一个验证规则
+	 * @param string $ruleName
+	 * @return bool
+	 */
+	public function hasRule(string $ruleName): bool {
+		return isset($this->filterRules[$ruleName]);
+	}
+
+	/**
+	 * 移除一个验证规则
+	 * @param string $ruleName
+	 * @return bool
+	 */
+	public function delRule(string $ruleName): bool {
+		if (!$this->hasRule($ruleName))
+			throw new InvalidArgumentException("Rule[$ruleName] is not exist.");
+		unset($this->filterRules[$ruleName]);
+		return !$this->hasRule($ruleName);
+	}
+
+	/**
+	 * 更新一个验证规则
+	 * @param string $ruleName
+	 * @param string|Closure $rule
+	 * @return bool
+	 */
+	public function editRule(string $ruleName, $rule): bool {
+		return $this->delRule($ruleName) && $this->addRule($ruleName, $rule);
+	}
+
+	/**
+	 * 一个请求参数是否存在
+	 * 依次检测请求体, url, 域名, file
+	 * @param string $key
+	 * @return bool
+	 */
+	public function has(string $key): bool {
+		return isset($this->{$this->method}[$key]) || isset($this->get[$key]) || isset($this->domain[$key]) ||
+		       $this->file->has($key);
+	}
+
+	/**
+	 * 获取当前请求类型的参数
+	 * @param string $key
+	 * @param string $filter 预定规则 or 正则表达式
+	 * @return mixed
+	 */
+	public function input(string $key, string $filter = null) {
+		return $this->filterFunc($this->method, $key, $filter);
+	}
+
+	public function domain(string $key, string $filter = null) {
+		return $this->filterFunc('domain', $key, $filter);
+	}
+
+	public function get(string $key, string $filter = null) {
+		return $this->filterFunc('get', $key, $filter);
 	}
 
 	public function post(string $key, string $filter = null) {
@@ -101,13 +148,32 @@ trait Filter {
 	}
 
 	/**
-	 * 获取当前请求类型的参数
+	 * 过滤请求参数, 参数不存在返回null, 验证不通过返回false
+	 * @param string $method
 	 * @param string $key
-	 * @param string $filter 预定规则 or 正则表达式
-	 * @return mixed
+	 * @param string|false $filter
+	 * @return mixed|false|null
 	 */
-	public function input(string $key, string $filter = null) {
-		return $this->filterFunc($this->method, $key, $filter);
+	protected function filterFunc(string $method, string $key, string $filter = null) {
+		if (isset($this->$method[$key]))
+			return (is_null($filter) || $this->filterMatch($this->$method[$key], $filter)) ? $this->$method[$key] :
+				false;
+		else
+			return null;
+	}
+
+	/**
+	 * 正则匹配
+	 * @param string $str 检验对象
+	 * @param string $rule 匹配规则
+	 * @return bool
+	 */
+	protected function filterMatch(string $str, string $rule): bool {
+		$rule = $this->filterRules[$rule] ?? $rule;
+		if ($rule instanceof Closure) {
+			return $rule($str) ? true : false;
+		}
+		return preg_match($rule, $str) ? true : false;
 	}
 
 }

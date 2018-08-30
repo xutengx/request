@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types = 1);
-namespace Xutengx\Request\component;
+namespace Xutengx\Request\Component;
 
 use Iterator;
 use Xutengx\Request\Exception\UploadFileException;
@@ -18,7 +18,7 @@ class UploadFile implements Iterator {
 		'File write failure.',
 	];
 
-	protected $_items = [];
+	protected $items = [];
 
 	protected $file;
 
@@ -27,13 +27,22 @@ class UploadFile implements Iterator {
 	}
 
 	/**
+	 * 是否存在
+	 * @param string $key
+	 * @return bool
+	 */
+	public function has(string $key): bool {
+		return $this->items[$key];
+	}
+
+	/**
 	 * 将$_FILES 放入 $this->file
-	 * @param array $_FILES
+	 * @param array $_files $_FILES
 	 * @throws UploadFileException
 	 * @return void
 	 */
-	public function addFiles(array $_FILES): void {
-		foreach ($_FILES as $k => $v) {
+	public function addFiles(array $_files): void {
+		foreach ($_files as $k => $v) {
 			if ($v['error'] === 0) {
 				$this->addFile([
 					'key_name' => $k,
@@ -47,7 +56,6 @@ class UploadFile implements Iterator {
 				$msg = (static::$errorMsg[$v['error']] ?? '') . ' code:' . (string)$v['error'];
 				throw new UploadFileException($msg);
 			}
-
 		}
 	}
 
@@ -61,7 +69,7 @@ class UploadFile implements Iterator {
 		foreach ($fileInfo as $k => $v) {
 			$file->{$k} = $v;
 		}
-		$this->_items[$file->key_name] = $file;
+		$this->items[$file->key_name] = $file;
 	}
 
 	/**
@@ -69,7 +77,7 @@ class UploadFile implements Iterator {
 	 * @return void
 	 */
 	public function cleanAll(): void {
-		foreach ($this->_items as $file) {
+		foreach ($this->items as $file) {
 			$file->clean();
 		}
 	}
@@ -80,27 +88,27 @@ class UploadFile implements Iterator {
 	 * @return File
 	 */
 	public function __get(string $attr): File {
-		if (isset($this->_items[$attr])) {
-			return $this->_items[$attr];
+		if (isset($this->items[$attr])) {
+			return $this->items[$attr];
 		}
 	}
 
 	/****************************** 以下 Iterator 实现 ******************************/
 
 	public function rewind() {
-		reset($this->_items);
+		reset($this->items);
 	}
 
 	public function current() {
-		return current($this->_items);
+		return current($this->items);
 	}
 
 	public function key() {
-		return key($this->_items);
+		return key($this->items);
 	}
 
 	public function next() {
-		return next($this->_items);
+		return next($this->items);
 	}
 
 	public function valid() {
