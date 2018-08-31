@@ -5,6 +5,6 @@ namespace Xutengx\Request\Exception;
 
 use Xutengx\Exception\Http\UnprocessableEntityHttpException;
 
-class UploadFileException extends UnprocessableEntityHttpException {
+class IllegalArgumentException extends UnprocessableEntityHttpException {
 
 }

@@ -3,10 +3,12 @@
 declare(strict_types = 1);
 namespace Xutengx\Request\Component;
 
+use ArrayAccess;
+use InvalidArgumentException;
 use Iterator;
 use Xutengx\Request\Exception\UploadFileException;
 
-class UploadFile implements Iterator {
+class UploadFile implements Iterator,ArrayAccess {
 
 	protected static $errorMsg = [
 		'Upload success.',
@@ -115,4 +117,25 @@ class UploadFile implements Iterator {
 		return ($this->current() !== false);
 	}
 
+	/****************************** 以下 ArrayAccess 实现 ******************************/
+
+	public function offsetExists($offset) {
+		return isset($this->items[$offset]);
+	}
+
+	public function offsetGet($offset) {
+		return $this->items[$offset];
+	}
+
+	public function offsetSet($offset, $value) {
+		if (!is_array($value)) {
+			throw new InvalidArgumentException;
+		}
+		$value['key_name'] = $offset;
+		$this->addFile($value);
+	}
+
+	public function offsetUnset($offset) {
+		unset($this->items[$offset]);
+	}
 }

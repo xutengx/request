@@ -3,8 +3,10 @@
 declare(strict_types = 1);
 namespace Xutengx\Request\Traits;
 
+use BadMethodCallException;
 use Closure;
 use InvalidArgumentException;
+use Xutengx\Request\Exception\{IllegalArgumentException, NotFoundArgumentException};
 
 trait Filter {
 
@@ -45,7 +47,7 @@ trait Filter {
 	 */
 	public function addRule(string $ruleName, $rule): bool {
 		if (isset($this->filterRules[$ruleName]))
-			throw new InvalidArgumentException("Rule[$ruleName] is already exist.");
+			throw new InvalidArgumentException("Rule [$ruleName] is already exist.");
 		if (is_string($rule)) {
 			$this->filterRules[$ruleName] = $rule;
 			return true;
@@ -75,7 +77,7 @@ trait Filter {
 	 */
 	public function delRule(string $ruleName): bool {
 		if (!$this->hasRule($ruleName))
-			throw new InvalidArgumentException("Rule[$ruleName] is not exist.");
+			throw new InvalidArgumentException("Rule [$ruleName] is not exist.");
 		unset($this->filterRules[$ruleName]);
 		return !$this->hasRule($ruleName);
 	}
@@ -102,64 +104,70 @@ trait Filter {
 	}
 
 	/**
-	 * 获取当前请求类型的参数
-	 * @param string $key
-	 * @param string $filter 预定规则 or 正则表达式
-	 * @return mixed
+	 * 获取全部参数
+	 * 注:当存在相同键名参数时, 将会发生覆盖
+	 * @return array
 	 */
-	public function input(string $key, string $filter = null) {
-		return $this->filterFunc($this->method, $key, $filter);
-	}
-
-	public function domain(string $key, string $filter = null) {
-		return $this->filterFunc('domain', $key, $filter);
-	}
-
-	public function get(string $key, string $filter = null) {
-		return $this->filterFunc('get', $key, $filter);
-	}
-
-	public function post(string $key, string $filter = null) {
-		return $this->filterFunc('post', $key, $filter);
-	}
-
-	public function put(string $key, string $filter = null) {
-		return $this->filterFunc('put', $key, $filter);
-	}
-
-	public function delete(string $key, string $filter = null) {
-		return $this->filterFunc('delete', $key, $filter);
-	}
-
-	public function head(string $key, string $filter = null) {
-		return $this->filterFunc('head', $key, $filter);
-	}
-
-	public function options(string $key, string $filter = null) {
-		return $this->filterFunc('options', $key, $filter);
-	}
-
-	public function patch(string $key, string $filter = null) {
-		return $this->filterFunc('patch', $key, $filter);
-	}
-
-	public function cookie(string $key, string $filter = null) {
-		return $this->filterFunc('cookie', $key, $filter);
+	public function all(): array {
+		return array_merge($this->{$this->method}, $this->get, $this->domain, $this->file);
 	}
 
 	/**
-	 * 过滤请求参数, 参数不存在返回null, 验证不通过返回false
-	 * @param string $method
+	 * 获取当前请求类型的参数
 	 * @param string $key
-	 * @param string|false $filter
-	 * @return mixed|false|null
+	 * @param string $ruleName 预定规则 or 正则表达式
+	 * @return mixed
+	 * @throws NotFoundArgumentException 参数不存在时抛出
+	 * @throws IllegalArgumentException 验证不通过时抛出
 	 */
-	protected function filterFunc(string $method, string $key, string $filter = null) {
-		if (isset($this->$method[$key]))
-			return (is_null($filter) || $this->filterMatch($this->$method[$key], $filter)) ? $this->$method[$key] :
-				false;
-		else
-			return null;
+	public function input(string $key, string $ruleName = null) {
+		return $this->filterFunction($this->method, $key, $ruleName);
+	}
+
+	/**
+	 * 获取指定请求类型的参数
+	 * @param string $function
+	 * @param array $parameters
+	 * @return mixed
+	 * @throws IllegalArgumentException
+	 * @throws NotFoundArgumentException
+	 */
+	public function __call(string $function, array $parameters = []) {
+		if (in_array($function, [
+			'domain',
+			'get',
+			'post',
+			'put',
+			'delete',
+			'head',
+			'option',
+			'patch',
+			'cookie',
+			'file'
+		], true)) {
+			return $this->filterFunction(...$parameters);
+		}
+		else throw new BadMethodCallException('Call to undefined method ' . static::class . '::' . $function . '()');
+	}
+
+	/**
+	 * 过滤请求参数
+	 * @param string $method
+	 * @param string $key 为null时返回所有
+	 * @param string $ruleName 为null时不验证
+	 * @return mixed
+	 * @throws NotFoundArgumentException 参数不存在时抛出
+	 * @throws IllegalArgumentException 验证不通过时抛出
+	 */
+	protected function filterFunction(string $method, string $key = null, string $ruleName = null) {
+		if (is_null($key))
+			return $this->{$method};
+		elseif (isset($this->$method[$key])) {
+			if (is_null($ruleName) || $this->filterMatch($this->$method[$key], $ruleName))
+				return $this->$method[$key];
+			else throw new IllegalArgumentException("Invalid request argument [$key] with rule [$ruleName].");
+		}
+		else throw new NotFoundArgumentException("Not found request argument [$key] in method [$method].");
 	}
 
 	/**
