@@ -31,8 +31,6 @@ trait RequestInfo {
 	public $contentType; // 请求体格式
 	public $acceptType; // 需求的相应体格式
 
-	//define('HOST', ($_SERVER['HTTP_HTTPS'] ?? $_SERVER['REQUEST_SCHEME']) . '://' . $_SERVER['HTTP_HOST'] . str_replace(IN_SYS, '', $_SERVER['SCRIPT_NAME']));
-
 	/**
 	 * 判断ip是否在某几个范围内
 	 * @param string $ip
@@ -85,6 +83,10 @@ trait RequestInfo {
 		return $_SERVER['REMOTE_ADDR'] ?? '';
 	}
 
+	/**
+	 * 获取请求信息
+	 * @return void
+	 */
 	public function RequestInfoInit() {
 		$this->inSys          = 'index.php';
 		$this->isAjax         = $this->isAjax();
@@ -107,6 +109,15 @@ trait RequestInfo {
 		$this->ip             = $this->userIp = $this->getUserIp();
 		$this->contentType    = $_SERVER['CONTENT_TYPE'] ?? '';
 		$this->acceptType     = $_SERVER['HTTP_ACCEPT'] ?? $_SERVER['HTTP_ACCEPT_TYPE'] ?? '';
+	}
+
+	/**
+	 * 获取请求头中的内容
+	 * @param string $key
+	 * @return string|null
+	 */
+	public function header(string $key) {
+		return $_SERVER[$key] ?? null;
 	}
 
 	/**
