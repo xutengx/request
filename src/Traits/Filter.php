@@ -145,7 +145,7 @@ trait Filter {
 			'cookie',
 			'file'
 		], true)) {
-			return $this->filterFunction(...$parameters);
+			return $this->filterFunction($function, ...$parameters);
 		}
 		else throw new BadMethodCallException('Call to undefined method ' . static::class . '::' . $function . '()');
 	}

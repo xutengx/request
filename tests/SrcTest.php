@@ -22,6 +22,12 @@ final class SrcTest extends TestCase {
 		$this->assertInstanceOf(UploadFile::class, $UploadFile = new UploadFile($File));
 		$this->assertInstanceOf(Request::class, $request = new Request($UploadFile, $Tool));
 
+		$request->setParameters();
+
+	}
+
+	public function testInfo(){
+		
 	}
 
 }

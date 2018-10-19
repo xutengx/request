@@ -75,11 +75,11 @@ class Request {
 	 * 参数过滤及设置
 	 * @param array $domainParameters 路由的`域名`参数
 	 * @param array $staticParameters url静态参数(pathInfo参数)
-	 * @return Request
+	 * @return void
 	 * @throws Exception\UploadFileException
 	 * @throws \Xutengx\Tool\Exception\DecodeXMLException
 	 */
-	public function setParameters(array $domainParameters = [], array $staticParameters = []): Request {
+	public function setParameters(array $domainParameters = [], array $staticParameters = []): void {
 		$this->{$this->method} = $this->parsingData();
 		$this->get             = array_merge($this->filter($staticParameters), $this->recursiveHtmlspecialchars($_GET));
 		$this->cookie          = $this->recursiveHtmlspecialchars($_COOKIE);
