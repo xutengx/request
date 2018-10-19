@@ -29,6 +29,14 @@ class UploadFile implements Iterator,ArrayAccess {
 	}
 
 	/**
+	 * 得到所有file对象
+	 * @return array
+	 */
+	public function get(): array {
+		return $this->items;
+	}
+
+	/**
 	 * 是否存在
 	 * @param string $key
 	 * @return bool

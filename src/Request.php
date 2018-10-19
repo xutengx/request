@@ -8,20 +8,57 @@ use Xutengx\Request\Component\UploadFile;
 use Xutengx\Request\Traits\{Filter, RequestInfo};
 use Xutengx\Tool\Tool;
 
+/**
+ * Class Request
+ * @package Xutengx\Request
+ */
 class Request {
 
 	use RequestInfo, Filter;
 
+	/**
+	 * @var array
+	 */
 	protected $domain  = [];
+	/**
+	 * @var array
+	 */
 	protected $get     = [];
+	/**
+	 * @var array
+	 */
 	protected $post    = [];
+	/**
+	 * @var array
+	 */
 	protected $put     = [];
+	/**
+	 * @var array
+	 */
 	protected $delete  = [];
+	/**
+	 * @var array
+	 */
 	protected $options = [];
-	protected $head    = [];
-	protected $patch   = [];
-	protected $cookie  = [];
+	/**
+	 * @var array
+	 */
+	protected $head   = [];
+	/**
+	 * @var array
+	 */
+	protected $patch  = [];
+	/**
+	 * @var array
+	 */
+	protected $cookie = [];
+	/**
+	 * @var UploadFile
+	 */
 	protected $file;
+	/**
+	 * @var Tool
+	 */
 	protected $tool;
 
 	/**

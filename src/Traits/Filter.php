@@ -10,6 +10,10 @@ use Xutengx\Request\Exception\{IllegalArgumentException, NotFoundArgumentExcepti
 
 trait Filter {
 
+	/**
+	 * 过滤表达式
+	 * @var array
+	 */
 	protected $filterRules = [
 		'email'     => '/^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/',
 		'url'       => '/\b(([\w-]+:\/\/?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|\/)))/',
@@ -109,7 +113,7 @@ trait Filter {
 	 * @return array
 	 */
 	public function all(): array {
-		return array_merge($this->{$this->method}, $this->get, $this->domain, $this->file);
+		return array_merge($this->{$this->method}, $this->get, $this->domain, $this->file->get());
 	}
 
 	/**
