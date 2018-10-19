@@ -5,6 +5,7 @@ namespace Xutengx\Request\Traits;
 
 use BadMethodCallException;
 use Closure;
+use Exception;
 use InvalidArgumentException;
 use Xutengx\Request\Exception\{IllegalArgumentException, NotFoundArgumentException};
 
@@ -176,16 +177,21 @@ trait Filter {
 
 	/**
 	 * 正则匹配
-	 * @param string $str 检验对象
+	 * @param string $str 检验字符
 	 * @param string $rule 匹配规则
 	 * @return bool
+	 * @throws Exception
 	 */
 	protected function filterMatch(string $str, string $rule): bool {
 		$rule = $this->filterRules[$rule] ?? $rule;
 		if ($rule instanceof Closure) {
 			return $rule($str) ? true : false;
 		}
-		return preg_match($rule, $str) ? true : false;
+		try {
+			return preg_match($rule, $str) ? true : false;
+		} catch (Exception $e) {
+			throw new Exception($e->getMessage()." when filer [$str] using [$rule]");
+		}
 	}
 
 }
