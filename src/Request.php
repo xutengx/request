@@ -19,23 +19,23 @@ class Request {
 	/**
 	 * @var array
 	 */
-	protected $domain  = [];
+	protected $domain = [];
 	/**
 	 * @var array
 	 */
-	protected $get     = [];
+	protected $get = [];
 	/**
 	 * @var array
 	 */
-	protected $post    = [];
+	protected $post = [];
 	/**
 	 * @var array
 	 */
-	protected $put     = [];
+	protected $put = [];
 	/**
 	 * @var array
 	 */
-	protected $delete  = [];
+	protected $delete = [];
 	/**
 	 * @var array
 	 */
@@ -43,11 +43,11 @@ class Request {
 	/**
 	 * @var array
 	 */
-	protected $head   = [];
+	protected $head = [];
 	/**
 	 * @var array
 	 */
-	protected $patch  = [];
+	protected $patch = [];
 	/**
 	 * @var array
 	 */
@@ -214,22 +214,17 @@ class Request {
 	 * @return array
 	 */
 	protected function splitInput(string $delimiter, string $input): array {
-		$allBlocks = explode('--' . $delimiter . "\r\n", $input);
-		// 移除头部无效元素
-		array_shift($allBlocks);
-		// 移除末尾无效元素
-		array_pop($allBlocks);
+		$allBlocks = explode('--' . $delimiter . "\r\n", rtrim($input, '--' . $delimiter . '--' . "\r\n"));
+		$arr = [];
 		// 格式化
 		foreach ($allBlocks as $k => $block) {
+			if($block === '')
+				continue;
 			$tempBlocks = explode("\r\n\r\n", $block);
-			$temp       = [];
-			for ($i = 1; $i < count($tempBlocks); $i++) {
-				$temp[] = $allBlocks[$k][$i];
-			}
-			$allBlocks[$k]['header'] = $tempBlocks[0];
-			$allBlocks[$k]['body']   = rtrim(implode(" ", $temp), "\r\n");
+			$arr[$k]['header'] = reset($tempBlocks);
+			$arr[$k]['body']   = rtrim(end($tempBlocks), "\r\n");
 		}
-		return $allBlocks;
+		return $arr;
 	}
 
 	/**
