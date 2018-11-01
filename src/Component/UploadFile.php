@@ -6,19 +6,8 @@ namespace Xutengx\Request\Component;
 use ArrayAccess;
 use InvalidArgumentException;
 use Iterator;
-use Xutengx\Request\Exception\UploadFileException;
 
 class UploadFile implements Iterator,ArrayAccess {
-
-	protected static $errorMsg = [
-		'Upload success.',
-		'Upload files too large.',
-		'Upload files too large.',
-		'Only part of the file is uploaded.',
-		'No file is uploaded.',
-		'Temporary folder not found.',
-		'File write failure.',
-	];
 
 	protected $items = [];
 
@@ -48,24 +37,18 @@ class UploadFile implements Iterator,ArrayAccess {
 	/**
 	 * 将$_FILES 放入 $this->file
 	 * @param array $_files $_FILES
-	 * @throws UploadFileException
 	 * @return void
 	 */
 	public function addFiles(array $_files): void {
 		foreach ($_files as $k => $v) {
-			if ($v['error'] === 0) {
-				$this->addFile([
-					'key_name' => $k,
-					'name'     => $v['name'],
-					'type'     => $v['type'],
-					'tmp_name' => $v['tmp_name'],
-					'size'     => $v['size']
-				]);
-			}
-			else {
-				$msg = (static::$errorMsg[$v['error']] ?? '') . ' code:' . (string)$v['error'];
-				throw new UploadFileException($msg);
-			}
+			$this->addFile([
+				'key_name' => $k,
+				'name'     => $v['name'],
+				'type'     => $v['type'],
+				'tmp_name' => $v['tmp_name'],
+				'error'    => $v['error'],
+				'size'     => $v['size']
+			]);
 		}
 	}
 

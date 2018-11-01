@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Xutengx\Request\Component;
 
 use Xutengx\Tool\Tool;
+use Xutengx\Request\Exception\UploadFileException;
 
 /**
  * 每个上传的文件对象
@@ -22,6 +23,21 @@ class File {
 		'image/bmp'    => 'bmp',
 		'image/x-icon' => 'ico',
 	];
+
+	/**
+	 * $_FILES 中的error 对应的msg
+	 * @var array
+	 */
+	const errorMsg = [
+		'Upload success.',
+		'Upload files too large.',
+		'Upload files too large.',
+		'Only part of the file is uploaded.',
+		'No file is uploaded.',
+		'Temporary folder not found.',
+		'File write failure.',
+	];
+
 	/**
 	 * 上传的文件名
 	 * @var string
@@ -47,6 +63,11 @@ class File {
 	 * @var string
 	 */
 	public $tmp_name;
+	/**
+	 * $_FILES 中的error (post 上传文件时, 由php生成, 其他方式则没有此项)
+	 * @var int
+	 */
+	public $error = 0;
 	/**
 	 * 文件保存的路径
 	 * @var string
@@ -128,9 +149,12 @@ class File {
 
 	/**
 	 * 保存上传的文件, 优先使用 \move_uploaded_file
+	 * @throws UploadFileException
 	 * @return bool
 	 */
 	public function move_uploaded_file(): bool {
+		// 检查是否出错
+		$this->checkError();
 		// 文件名包含绝对路径
 		$newFileName = $this->saveFilename ?? $this->makeFilename($this->defaultSavePath . date('Ym/d/'));
 
@@ -182,6 +206,17 @@ class File {
 	public function __set(string $attr, string $value) {
 		if ($attr === 'content') {
 			return $this->content = $value;
+		}
+	}
+
+	/**
+	 * 检测是否出错
+	 * @throws UploadFileException
+	 */
+	protected function checkError() {
+		if ($this->error !== 0) {
+			$msg = (static::errorMsg[$this->error] ?? '') . ' code:' . (string)$this->error;
+			throw new UploadFileException($msg);
 		}
 	}
 
