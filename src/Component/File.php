@@ -119,7 +119,7 @@ class File {
 	 * @return bool
 	 */
 	public function isGreater(int $size = 2): bool {
-		return ($this->size > $size);
+		return ($this->size >= $size);
 	}
 
 	/**
@@ -128,7 +128,7 @@ class File {
 	 * @return bool
 	 */
 	public function isLess(int $size = 8388608): bool {
-		return ($this->size < $size);
+		return ($this->size <= $size);
 	}
 
 	/**

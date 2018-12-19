@@ -4,8 +4,8 @@ declare(strict_types = 1);
 namespace Xutengx\Request;
 
 use InvalidArgumentException;
-use Xutengx\Request\Component\UploadFile;
-use Xutengx\Request\Traits\{Filter, RequestInfo};
+use Xutengx\Request\Component\{UploadFile, Validator as ValidatorObject};
+use Xutengx\Request\Traits\{Filter, RequestInfo, Validator};
 use Xutengx\Tool\Tool;
 
 /**
@@ -14,7 +14,7 @@ use Xutengx\Tool\Tool;
  */
 class Request {
 
-	use RequestInfo, Filter;
+	use RequestInfo, Filter, Validator;
 
 	/**
 	 * @var array
@@ -60,16 +60,22 @@ class Request {
 	 * @var Tool
 	 */
 	protected $tool;
+	/**
+	 * @var ValidatorObject
+	 */
+	protected $validator;
 
 	/**
 	 * Request constructor.
 	 * @param UploadFile $uploadFile
 	 * @param Tool $tool
+	 * @param ValidatorObject $validator
 	 */
-	public function __construct(UploadFile $uploadFile, Tool $tool) {
+	public function __construct(UploadFile $uploadFile, Tool $tool, ValidatorObject $validator) {
 		$this->RequestInfoInit();
-		$this->file = $uploadFile;
-		$this->tool = $tool;
+		$this->file      = $uploadFile;
+		$this->tool      = $tool;
+		$this->validator = $validator;
 	}
 
 	/**
@@ -215,12 +221,12 @@ class Request {
 	 */
 	protected function splitInput(string $delimiter, string $input): array {
 		$allBlocks = explode('--' . $delimiter . "\r\n", rtrim($input, '--' . $delimiter . '--' . "\r\n"));
-		$arr = [];
+		$arr       = [];
 		// 格式化
 		foreach ($allBlocks as $k => $block) {
-			if($block === '')
+			if ($block === '')
 				continue;
-			$tempBlocks = explode("\r\n\r\n", $block);
+			$tempBlocks        = explode("\r\n\r\n", $block);
 			$arr[$k]['header'] = reset($tempBlocks);
 			$arr[$k]['body']   = rtrim(end($tempBlocks), "\r\n");
 		}

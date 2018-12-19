@@ -61,7 +61,6 @@ trait RequestInfo {
 	protected static function getUserIp(): string {
 		// 准确ip
 		// 一级代理赋值 proxy_set_header X-Real-IP $remote_addr;
-		// 其他代理传值 proxy_set_header X-Real-IP $http_x_real_ip;
 		if (isset($_SERVER['HTTP_X_REAL_IP']) && !empty($_SERVER['HTTP_X_REAL_IP'])) {
 			return $_SERVER['HTTP_X_REAL_IP'];
 		}
@@ -91,7 +90,7 @@ trait RequestInfo {
 		$this->inSys          = 'index.php';
 		$this->isAjax         = $this->isAjax();
 		$this->scheme         = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $_SERVER['REQUEST_SCHEME'] ?? '';
-		$this->host           = $_SERVER['HTTP_HOST'] ?? '';
+		$this->host           = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? '';
 		$this->port           = $_SERVER['HTTP_X_FORWARDED_PORT'] ?? $_SERVER['SERVER_PORT'] ?? '';
 		$this->scriptName     = $_SERVER['SCRIPT_NAME'] ?? '';
 		$this->requestUrl     = $_SERVER['REQUEST_URI'] ?? '';
