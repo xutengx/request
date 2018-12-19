@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 namespace Xutengx\Request\Component;
 
+use Closure;
 use InvalidArgumentException;
 use Xutengx\Request\Exception\{IllegalArgumentException};
 
@@ -15,32 +16,27 @@ class Validator {
 	 * 字段值所属类型 eg: string,numeric,array,file
 	 * @var string
 	 */
-	protected $type;
+	public $type;
 	/**
 	 * 是否空值
 	 * @var bool
 	 */
-	protected $isEmpty = false;
+	public $isEmpty = false;
 	/**
 	 * 字段name
 	 * @var string
 	 */
-	protected $name;
+	public $name;
 	/**
 	 * 字段值引用
 	 * @var mixed
 	 */
-	protected $value;
+	public $value;
 	/**
 	 * 已经验证过的数据
 	 * @var array
 	 */
-	protected $okData;
-	/**
-	 * 验证错误信息
-	 * @var string
-	 */
-	protected $message;
+	public $okData;
 
 	/**
 	 * 初始化键和值
@@ -59,12 +55,12 @@ class Validator {
 	}
 
 	/**
-	 * 使用规则验证
+	 * 使用既有规则验证
 	 * @param string $ruleString eg:accepted|require|in:2,3
 	 * @return void
 	 * @throws IllegalArgumentException
 	 */
-	public function useRule(string $ruleString): void {
+	public function useExistingRule(string $ruleString): void {
 		// 拆分各个验证规则
 		$ruleArr = explode('|', $ruleString);
 		foreach ($ruleArr as $rule) {
@@ -79,6 +75,19 @@ class Validator {
 					$this->throwIllegalArgumentException($ruleFunctionName, $rule);
 				}
 			}
+		}
+	}
+
+	/**
+	 * 使用闭包规则验证
+	 * @param Closure $closure
+	 * @return void
+	 * @throws IllegalArgumentException
+	 */
+	public function useClosureRule(Closure $closure): void {
+		$message = null;
+		if (!$closure($this, $message)) {
+			$this->throwIllegalArgumentException('Closure', 'Closure', $message);
 		}
 	}
 
@@ -687,12 +696,13 @@ class Validator {
 	 * 构造异常响应
 	 * @param string $ruleName eg:between
 	 * @param string $rule eg:between:2,4
+	 * @param string $message eg:用户名不合法
 	 * @return void
 	 * @throws IllegalArgumentException
 	 */
-	protected function throwIllegalArgumentException(string $ruleName, string $rule): void {
-		$reason = static::$ruleReasonMap[$ruleName] ?? 'Non-compliance the rule[' . $rule . '].';
-		$msg    = "The field[$this->name] and value[" . serialize($this->value) . "], $reason";
+	protected function throwIllegalArgumentException(string $ruleName, string $rule, string $message = null): void {
+		$msg = $message ?? ('The field[' . $this->name . '] and value[' . serialize($this->value) . '], ' .
+		                    (static::$ruleReasonMap[$ruleName] ?? ('Non-compliance the rule[' . $rule . '].')));
 		throw new IllegalArgumentException($msg);
 	}
 }

@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 namespace Xutengx\Request\Traits;
 
+use Closure;
 use Xutengx\Request\Component\Validator as ValidatorObject;
 use Xutengx\Request\Exception\IllegalArgumentException;
 
@@ -31,16 +32,17 @@ trait Validator {
 		// 过滤后的数据
 		$okData = [];
 		// 拆分字段规则
-		foreach ($ruleArr as $fieldName => $ruleString){
+		foreach ($ruleArr as $fieldName => $ruleStringOrClosure) {
 			// 兼容极简规则
-			$this->minimalistRules($fieldName, $ruleString);
+			$this->minimalistRules($fieldName, $ruleStringOrClosure);
 			// 获取原值
 			$fieldValue = $this->getOldValue($fieldName, $pendingData);
 			// 构建验证对象
 			$ValidatorObject = $this->getValidatorObject($fieldName, $fieldValue, $okData);
 			// 规则验证
 			// 不通过, 将抛出`IllegalArgumentException`
-			$ValidatorObject->useRule($ruleString);
+			is_string($ruleStringOrClosure) ? $ValidatorObject->useExistingRule($ruleStringOrClosure) :
+				$ValidatorObject->useClosureRule($ruleStringOrClosure);
 			// 赋值数组
 			$okData[$fieldName] = $fieldValue;
 		}
@@ -50,10 +52,10 @@ trait Validator {
 	/**
 	 * 兼容极简规则 eg:['name'] => ['name'=>'']
 	 * @param int|string &$fieldName
-	 * @param string &$ruleString
+	 * @param string|Closure &$ruleString
 	 * @return void
 	 */
-	protected function minimalistRules(&$fieldName, string &$ruleString): void {
+	protected function minimalistRules(&$fieldName, &$ruleString): void {
 		if (is_int($fieldName)) {
 			$fieldName  = $ruleString;
 			$ruleString = '';

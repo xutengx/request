@@ -791,10 +791,6 @@ final class SrcTest extends TestCase {
 			['email' => '12345122@qq.com']);
 	}
 
-	public function testValidatorFile() {
-
-	}
-
 	public function testValidatorCompare() {
 		$request = $this->testRequest();
 		$this->assertEquals($request->validator([
@@ -1058,6 +1054,33 @@ final class SrcTest extends TestCase {
 		}
 		$this->assertEquals($request->validator(['age' => 'notRegex:/^[[a-zA-Z0-9]*$/'], ['age' => '#25']),
 			['age' => '#25']);
+	}
+
+	public function testValidatorClosure() {
+		$request   = $this->testRequest();
+		$exception = false;
+		try {
+			$request->validator([
+				'age' => function(Xutengx\Request\Component\Validator $validator, &$msg) {
+					$msg = '年龄要是数字';
+					return is_numeric($validator->value);
+				}
+			], ['age' => '12a']);
+		} catch (\Xutengx\Request\Exception\IllegalArgumentException $e) {
+			$exception = true;
+			$this->assertEquals($e->getMessage(), '年龄要是数字');
+		} finally {
+			$this->assertTrue($exception);
+		}
+		$this->assertEquals($request->validator([
+			'age' => function($validator) {
+				return is_numeric($validator->value);
+			}
+		], ['age' => '13']), ['age' => '13']);
+	}
+
+	public function testValidatorFile() {
+
 	}
 }
 
