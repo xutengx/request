@@ -10,25 +10,14 @@ use Xutengx\Request\Exception\IllegalArgumentException;
 trait Validator {
 
 	/**
-	 * 初始化对象
-	 * @param string $name
-	 * @param mixed &$value
-	 * @param array &$okData
-	 * @return ValidatorObject
-	 */
-	protected function getValidatorObject(string $name, &$value,array &$okData): ValidatorObject{
-		$obj = clone $this->validator;
-		return $obj->init($name, $value, $okData);
-	}
-
-	/**
 	 * 验证
-	 * @param array $ruleArr eg:['name'=>'required|size:4']
-	 * @param array $pendingData eg: ['name'=>'tony']
+	 * @param array $ruleArr 验证规则 eg:['name'=>'required|size:4']
+	 * @param array $pendingData 等待验证数组 eg: ['name'=>'tony']
 	 * @return array
 	 * @throws IllegalArgumentException
 	 */
-	public function validator($ruleArr = [], $pendingData = []): array{
+	public function validator($ruleArr = [], array $pendingData = null): array {
+		$pendingData = $pendingData ?? $this->all();
 		// 过滤后的数据
 		$okData = [];
 		// 拆分字段规则
@@ -62,8 +51,16 @@ trait Validator {
 		}
 	}
 
-	protected function fieldValidation($string, $rule){
-
+	/**
+	 * 初始化对象
+	 * @param string $name
+	 * @param mixed &$value
+	 * @param array &$okData
+	 * @return ValidatorObject
+	 */
+	protected function getValidatorObject(string $name, &$value, array &$okData): ValidatorObject {
+		$obj = clone $this->validator;
+		return $obj->init($name, $value, $okData);
 	}
 
 	/**
@@ -72,28 +69,8 @@ trait Validator {
 	 * @param array $data
 	 * @return mixed
 	 */
-	protected function getOldValue(string $fieldName, array $data){
+	protected function getOldValue(string $fieldName, array $data) {
 		return $data[$fieldName] ?? '';
-	}
-
-	/**
-	 * @param $oldValue
-	 * @param string $ruleString eg: required|numeric|mix:16|min:3
-	 * @param string $reason
-	 * @return bool
-	 */
-	protected function filterRules($oldValue, string $ruleString = null, &$reason = ''): bool{
-		if(!empty($ruleString)){
-			// 拆分规则
-			$ruleArr = explode('|', $ruleString);
-			// 分别验证
-			foreach ($ruleArr as $rule){
-				if(!$this->validationRule($oldValue, $rule, $reason)){
-					return false;
-				}
-			}
-		}
-		return true;
 	}
 
 }
